@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Search View for Axis Lines -->
+    <record id="view_project_financial_axis_line_search" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.search</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <search string="Recherche Historique des Axes">
+                <field name="axis_id" string="Axe Parent"/>
+                <!-- <field name="axis_id.type" string="Type d'Axe"/> -->
+                <field name="date" string="Date"/>
+                
+                <filter string="Aujourd'hui" name="today" domain="[('date', '=', context_today())]"/>
+                <filter string="Cette Semaine" name="this_week" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())))]"/>
+                <filter string="Ce Mois" name="this_month" domain="[('date', '&gt;=', datetime.datetime(context_today().year, context_today().month, 1))]"/>
+                <filter string="30 Derniers Jours" name="last_30_days" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=30)))]"/>
+                
+                <group expand="0" string="Grouper par">
+                    <filter string="Axe" name="axis" context="{'group_by': 'axis_id'}"/>
+                    <!-- <filter string="Type d'Axe" name="axis_type" context="{'group_by': 'axis_id.type'}"/> -->
+                    <filter string="Date" name="date" context="{'group_by': 'date'}"/>
+                    <filter string="Mois" name="month" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_project_financial_axis_line_list" model="ir.ui.view">
+        <field name="name">project.financial.axis..line.list</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <list string="Lignes Financiers" default_order="date desc">
+                <field name="date"/>
+                <field name="progress" widget="percentage" options="{'editable': false}" string="Avancement"/>
+                <field name="actual_cost" string="Qunatité effctué"/>
+                <field name="earned_value" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="earned_amount"/>
+                <field name="cost_performance_index"/>
+                <field name="delay_performance_index"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Grid View for Axis Lines -->
+    <record id="view_project_financial_axis_line_progress_grid" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.grid</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <grid string="Évolution Temporelle des Axes"
+                  create_inline="1"
+                  editable="bottom"
+                  display_empty="1"
+                  sample="1">
+                <field name="axis_id" type="row"/>
+                <!-- <field name="axis_id.type" type="row"/> -->
+                <field name="date" type="col">
+                    <range name="year" string="Années" span="year" step="month"/>
+                    <range name="month" string="Mois" span="month" step="day"/>
+                </field>
+                <field name="delay_performance_index" string="Total Acquise" type="measure"/>
+                <!-- <field name="earned_value" type="measure" widget="monetary" options="{'currency_field': 'currency_id'}"/> -->
+            </grid>
+        </field>
+    </record>
+
+    <record id="view_project_financial_axis_line_cost_grid" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.grid</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <grid string="Évolution Temporelle des Axes"
+                  create_inline="1"
+                  editable="bottom"
+                  display_empty="1"
+                  sample="1">
+                <field name="axis_id" type="row"/>
+                <!-- <field name="axis_id.type" type="row"/> -->
+                <field name="date" type="col">
+                    <range name="year" string="Années" span="year" step="month"/>
+                    <range name="month" string="Mois" span="month" step="day"/>
+                </field>
+                <field name="actual_cost" type="measure"/>
+                <!-- <field name="earned_value" type="measure" widget="monetary" options="{'currency_field': 'currency_id'}"/> -->
+            </grid>
+        </field>
+    </record>
+    
+
+    <!-- Pivot View for Axis Lines -->
+    <record id="view_project_financial_axis_line_pivot" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.pivot</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Analyse des Progressions Temporelles">
+                <field name="axis_id" type="row"/>
+                <!-- <field name="axis_id.type" type="row"/> -->
+                <field name="date" type="col" interval="day"/>
+                <field name="progress" type="measure" string="Avancement %"/>
+                <field name="earned_value" type="measure" string="Valeur Acquise"/>
+                <field name="actual_cost" type="measure" string="Coût Réel"/>
+                <!-- <field name="performance_index" type="measure" string="IPC"/> -->
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Cohort View for Axis Lines -->
+    <record id="view_project_financial_axis_line_cohort" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.cohort</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <cohort string="Rétention de la Progression"
+                    date_start="date"
+                    date_stop="date"
+                    interval="week"
+                    measure="progress"
+                    mode="retention">
+                <field name="axis_id" string="Type d'Axe"/>
+            </cohort>
+        </field>
+    </record>
+
+    <!-- Graph View for Axis Lines -->
+    <record id="view_project_financial_axis_line_graph" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.graph</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <graph string="Courbes d'Avancement" type="line">
+                <field name="date" type="col" interval="day"/>
+                <field name="axis_id" type="row"/>
+                <field name="progress" type="measure"/>
+                <!-- <field name="earned_value" type="measure"/> -->
+            </graph>
+        </field>
+    </record>
+
+    <!-- Actions pour l'Analyse Temporelle -->
+    <record id="action_project_financial_axis_line" model="ir.actions.act_window">
+        <field name="name">Historique des Progressions</field>
+        <field name="res_model">project.financial.axis.line</field>
+        <field name="view_mode">list</field>
+        <field name="search_view_id" ref="view_project_financial_axis_line_search"/>
+        <field name="view_id" ref="view_project_financial_axis_line_list"/>
+        <field name="context">{'default_axis_id': active_id}</field>
+    </record>
+
+    <record id="action_project_financial_axis_analysis" model="ir.actions.act_window">
+        <field name="name">Analyse Temporelle des Axes</field>
+        <field name="res_model">project.financial.axis.line</field>
+        <field name="view_mode">grid,pivot,cohort,graph</field>
+        <field name="search_view_id" ref="view_project_financial_axis_line_search"/>
+        <field name="context">{'default_axis_id': active_id}</field>
+    </record>
+
+    <!-- Mise à jour de l'action dans project.financial.progress -->
+</odoo>
