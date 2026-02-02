@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_project_financial_axis_budget_line_grid" model="ir.ui.view">
+        <field name="name">project.financial.axis.budget.line.grid</field>
+        <field name="model">project.financial.axis.budget.line</field>
+        <field name="arch" type="xml">
+            <grid string="Évolution Temporelle des Axes"
+                create_inline="1"
+                editable="bottom"
+                barchart_total="true"
+                sample="1">
+                <field name="axis_id" type="row"/>
+                <field name="axis_budget_id" type="row"/>
+                <field name="date" type="col">
+                    <range name="year" string="Années" span="year" step="month"/>
+                    <range name="month" string="Mois" span="month" step="day"/>
+                </field>
+                <field name="planned_budget" string="Valeur Planifiée" type="measure"/>
+            </grid>
+        </field>
+    </record>
+
+    <!-- <record id="timesheet_view_grid_by_employee_readonly" model="ir.ui.view">
+            <field name="name">account.analytic.line.grid.employee.readonly</field>
+            <field name="model">account.analytic.line</field>
+            <field name="inherit_id" ref="timesheet_grid.timesheet_view_grid_by_employee"/>
+            <field name="mode">primary</field>
+            <field name="arch" type="xml">
+                <xpath expr="/grid" position="attributes">
+                    <attribute name="create">false</attribute>
+                    <attribute name="edit">false</attribute>
+                </xpath>
+            </field>
+        </record> -->
+
+
+    <record id="view_project_financial_axis_budget_line_grid_form" model="ir.ui.view">
+        <field name="name">project.financial.axis.budget.line.grid.form</field>
+        <field name="model">project.financial.axis.budget.line</field>
+        <field name="arch" type="xml">
+            <form string="Saisie une ligne">
+            <group>
+                <group>
+                    <field name="axis_id" required="1" domain="[('project_financial_id', '=', context.get('default_project_financial_id'))]"/>
+                    <field name="date" required="1"/>
+                </group>
+                <group>
+                    <field name="planned_budget" required="1" string="Coùt Planifier" invisible="context.get('field_budget')"/>
+                </group>
+            </group>
+                <!-- <footer>
+                    <button name="save_and_close" string="Enregistrer" type="object" class="btn-primary"/>
+                    <button string="Annuler" special="cancel" class="btn-secondary"/>
+                </footer> -->
+            </form>
+        </field>
+    </record>
+</odoo>

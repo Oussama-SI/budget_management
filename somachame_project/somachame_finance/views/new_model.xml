@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+<!-- <record id="view_project_financial_axis_line_graph_time" model="ir.ui.view">
+    <field name="name">project.financial.axis.line.graph.time</field>
+    <field name="model">project.financial.axis.line</field>
+    <field name="arch" type="xml">
+        <graph string="KPI" type="line">
+            <field name="date" interval="month"/>
+            <field name="kpi_type"/>
+            <field name="value" type="measure"/>
+        </graph>
+    </field>
+</record>
+
+
+
+
+    <record id="action_project_financial_axis_line" model="ir.actions.act_window">
+        <field name="name">Financial Axis Lines</field>
+        <field name="res_model">project.financial.axis.line</field>
+        <field name="view_mode">pivot,graph,tree,form</field>
+    </record>
+
+    <menuitem id="menu_project_financial_axis_line"
+              name="Financial Axis Lines"
+              parent="somachame_finance.root_project_financial_menu"
+              action="somachame_finance.action_project_financial_axis_line"
+              sequence="40"/> -->
+
+</odoo>

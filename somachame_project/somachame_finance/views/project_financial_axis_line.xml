@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Search View for Axis Lines -->
+    <record id="view_project_financial_axis_line_search" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.search</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <search string="Recherche Historique des Axes">
+                <field name="axis_id" string="Axe Parent"/>
+                <!-- <field name="axis_id.type" string="Type d'Axe"/> -->
+                <field name="date" string="Date"/>
+                
+                <filter string="Aujourd'hui" name="today" domain="[('date', '=', context_today())]"/>
+                <filter string="Cette Semaine" name="this_week" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())))]"/>
+                <filter string="Ce Mois" name="this_month" domain="[('date', '&gt;=', datetime.datetime(context_today().year, context_today().month, 1))]"/>
+                <filter string="30 Derniers Jours" name="last_30_days" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=30)))]"/>
+                
+                <group expand="0" string="Grouper par">
+                    <filter string="Axe" name="axis" context="{'group_by': 'axis_id'}"/>
+                    <!-- <filter string="Type d'Axe" name="axis_type" context="{'group_by': 'axis_id.type'}"/> -->
+                    <filter string="Date" name="date" context="{'group_by': 'date'}"/>
+                    <filter string="Mois" name="month" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_project_financial_axis_line_list" model="ir.ui.view">
+        <field name="name">project.financial.axis..line.list</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <list string="Lignes Financiers" create="0" default_order="date desc">
+                <field name="date"/>
+                <field name="progress" widget="percentage" options="{'editable': false}" string="Avancement"/>
+                <field name="actual_cost" string="Qunatité effctué"/>
+                <field name="earned_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="acquise_value" string="Valeur Acquise" widget="percentage"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Grid View for Valeur Acquise -->
+    <record id="view_project_financial_axis_line_progress_grid" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.grid</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <grid string="Évolution des Axes"
+                  create_inline="1"
+                  editable="bottom"
+                  display_empty="1"
+                  sample="1"
+                  hide_column_total="true">
+                <field name="axis_id" type="row"/>
+                <!-- <field name="axis_id.type" type="row"/> -->
+                <field name="date" type="col">
+                    <range name="year" string="Années" span="year" step="month"/>
+                    <range name="month" string="Mois" span="month" step="day"/>
+                </field>
+                <field name="acquise_value" string="Totale Acquise" type="measure"/>
+                <!-- <field name="earned_value" type="measure" widget="monetary" options="{'currency_field': 'currency_id'}"/> -->
+            </grid>
+        </field>
+    </record>
+
+    <!-- Grid view pour Coùt réel -->
+    <record id="view_project_financial_axis_line_cost_grid" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.grid</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <grid string="Évolution des Axes" 
+                  create="false"
+                  display_empty="1"
+                  sample="1">
+                <field name="axis_id" type="row"/>
+                <!-- <field name="axis_id.type" type="row"/> -->
+                <field name="date" type="col">
+                    <range name="year" string="Années" span="year" step="month"/>
+                    <range name="month" string="Mois" span="month" step="day"/>
+                </field>
+                <field name="grid_cost" string="Coût Total" type="measure"/>
+            </grid>
+        </field>
+    </record>
+    
+    <!-- <record id="view_project_financial_axis_line_budget_grid" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.grid</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <grid string="Évolution Temporelle des Axes"
+                create_inline="1"
+                editable="bottom"
+                barchart_total="true"
+                sample="1">
+                <field name="axis_id" type="row"/>
+                <field name="axis_budget_id" type="row"/>
+                <field name="date" type="col">
+                    <range name="year" string="Années" span="year" step="month"/>
+                    <range name="month" string="Mois" span="month" step="day"/>
+                </field>
+                <field name="planned_budget" string="Valeur Planifiée" type="measure"/>
+            </grid>
+        </field>
+    </record> -->
+
+    <!-- <record id="timesheet_view_grid_by_employee_readonly" model="ir.ui.view">
+            <field name="name">account.analytic.line.grid.employee.readonly</field>
+            <field name="model">account.analytic.line</field>
+            <field name="inherit_id" ref="timesheet_grid.timesheet_view_grid_by_employee"/>
+            <field name="mode">primary</field>
+            <field name="arch" type="xml">
+                <xpath expr="/grid" position="attributes">
+                    <attribute name="create">false</attribute>
+                    <attribute name="edit">false</attribute>
+                </xpath>
+            </field>
+        </record> -->
+
+
+    <record id="view_project_financial_axis_line_grid_form" model="ir.ui.view">
+    <field name="name">project.financial.axis.line.grid.form</field>
+    <field name="model">project.financial.axis.line</field>
+    <field name="arch" type="xml">
+        <form string="Saisie une ligne">
+        <group>
+            <group>
+                <field name="axis_id" required="1" domain="[('project_financial_id', '=', context.get('default_project_financial_id')), ('type', 'in', ['manual', 'rate'])]"/>
+                <field name="date" required="1"/>
+            </group>
+            <group>
+                <!-- <field name="planned_budget" required="1" string="Coùt Planifier" invisible="context.get('field_budget')"/> -->
+                <field name="actual_cost" required="1" invisible="context.get('field_cost')"/>
+                <field name="earned_value" readonly="0" invisible="context.get('field_ipd')"/>
+                <field name="axis_planned_quantity" readonly="1" invisible="context.get('field_ipd')"/>
+            </group>
+        </group>
+            <!-- <footer>
+                <button name="save_and_close" string="Enregistrer" type="object" class="btn-primary"/>
+                <button string="Annuler" special="cancel" class="btn-secondary"/>
+            </footer> -->
+        </form>
+    </field>
+</record>
+
+
+    <!-- Pivot View for Axis Lines -->
+    <record id="view_project_financial_axis_line_pivot" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.pivot</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Analyse des Progressions Temporelles">
+                <field name="axis_id" type="row"/>
+                <!-- <field name="axis_id.type" type="row"/> -->
+                <field name="date" type="col" interval="day"/>
+                <field name="progress" type="measure" string="Avancement %"/>
+                <field name="earned_value" type="measure" string="Valeur Acquise"/>
+                <field name="actual_cost" type="measure" string="Coût Réel"/>
+                <!-- <field name="performance_index" type="measure" string="IPC"/> -->
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Cohort View for Axis Lines -->
+    <record id="view_project_financial_axis_line_cohort" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.cohort</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <cohort string="Rétention de la Progression"
+                    date_start="date"
+                    date_stop="date"
+                    interval="week"
+                    measure="progress"
+                    mode="retention">
+                <field name="axis_id" string="Type d'Axe"/>
+            </cohort>
+        </field>
+    </record>
+
+    <!-- Graph View for Axis Lines -->
+    <record id="view_project_financial_axis_line_graph" model="ir.ui.view">
+        <field name="name">project.financial.axis.line.graph</field>
+        <field name="model">project.financial.axis.line</field>
+        <field name="arch" type="xml">
+            <graph string="Courbes d'Avancement" type="line">
+                <field name="date" type="col" interval="day"/>
+                <field name="axis_id" type="row"/>
+                <field name="progress" type="measure"/>
+                <!-- <field name="earned_value" type="measure"/> -->
+            </graph>
+        </field>
+    </record>
+
+    <!-- Actions pour l'Analyse Temporelle -->
+    <record id="action_project_financial_axis_line" model="ir.actions.act_window">
+        <field name="name">Historique des Progressions</field>
+        <field name="res_model">project.financial.axis.line</field>
+        <field name="view_mode">list</field>
+        <field name="search_view_id" ref="view_project_financial_axis_line_search"/>
+        <field name="view_id" ref="view_project_financial_axis_line_list"/>
+    </record>
+
+    <record id="action_project_financial_axis_analysis" model="ir.actions.act_window">
+        <field name="name">Analyse des Axes</field>
+        <field name="res_model">project.financial.axis.line</field>
+        <field name="view_mode">grid,pivot,cohort,graph</field>
+        <field name="search_view_id" ref="view_project_financial_axis_line_search"/>
+        <field name="context">{'default_axis_id': active_id}</field>
+    </record>
+
+    <!-- Mise à jour de l'action dans project.financial.progress -->
+</odoo>

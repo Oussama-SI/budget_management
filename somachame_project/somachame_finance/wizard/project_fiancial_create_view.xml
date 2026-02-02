@@ -1,0 +1,88 @@
+<!-- views/project_financial_create_wizard_views.xml -->
+<odoo>
+    <record id="view_project_financial_create_wizard_form" model="ir.ui.view">
+        <field name="name">project.financial.create.wizard.form</field>
+        <field name="model">project.financial.create.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Créer un nouveau projet financier">
+                <sheet>
+                    <!-- <div class="oe_title">
+                        <h1>Nouveau projet financier</h1>
+                    </div> -->
+                    
+                    <!-- Étape 1: Informations de base -->
+                    <group> 
+                        <group>
+                            <field name="project_id" required="1"/>
+                            <field name="user_id" required="1"/>
+                       <!-- </group>
+                         <group>
+                            <field name="date_start" required="1"/>
+                            <field name="date_end" required="1"/>-->
+                        </group>
+                    </group>
+                    
+                            <field name="description" placeholder="Description du projet..." nolabel="1"/>                    
+
+                    <group string="Configuration automatique">
+                        <!-- <group> -->
+                            <field name="import_standard_axes" 
+                                   string="Importer la structure budgétaire standard"
+                                   invisible ="'import_standard_axes' == False"/>
+                            
+                            <!-- <field name="total_budget" 
+                                   readonly="1" invisible="'import_standard_axes' == False"
+                                   string="Budget total estimé"/> -->
+                        <!-- </group> -->
+                        
+                        <!-- <group>
+                            <field name="import_sample_data" 
+                                   string="Importer des données d'exemple (avancement &amp; coûts)"/>
+                            
+                            <field name="import_year" 
+                                   attrs="{'invisible': [('import_sample_data', '=', False)]}"
+                                   string="Année des données"/>
+                        </group> -->
+                    </group>
+                    
+                    <!-- Aperçu des données à importer -->
+                    <div class="alert alert-info mt-3" invisible="'import_standard_axes' == False">
+                        <strong>Structure budgétaire standard:</strong>
+                        <ul class="mb-0 mt-1">
+                            <li>14 axes budgétaires prédéfinis</li>
+                            <!-- <li>Budget total: <field name="total_budget"/></li> -->
+                            <li>Répartition mensuelle automatique</li>
+                        </ul>
+                    </div>
+<!--                     
+                    <div class="alert alert-warning mt-2" attrs="{'invisible': [('import_sample_data', '=', False)]}">
+                        <strong>Données d'exemple incluses:</strong>
+                        <ul class="mb-0 mt-1">
+                            <li>Pourcentages d'avancement par mois</li>
+                            <li>Coûts réels par axe</li>
+                            <li>Indicateurs EVM calculés automatiquement</li>
+                        </ul>
+                    </div> -->
+                </sheet>
+                <footer>
+                    <button name="action_create_financial_project" 
+                            type="object" 
+                            string="Créer" 
+                            class="oe_highlight btn-primary"/>
+                    <button string="Annuler" 
+                            class="btn-secondary" 
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Action pour ouvrir le wizard -->
+    <record id="action_project_financial_create_wizard" model="ir.actions.act_window">
+        <field name="name">Créer un projet financier</field>
+        <field name="res_model">project.financial.create.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_user_id': uid}</field>
+    </record>
+</odoo>

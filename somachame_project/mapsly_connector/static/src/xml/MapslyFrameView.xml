@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="mapsly_connector.MapslyFrameView" owl="1">
+<div class="o_mapsly_frame">
+<iframe t-att-src="state.url"
+style="width:100%; height:calc(100vh - 16px); border:0;"/>
+</div>
+</t>
+</templates>

@@ -1,0 +1,17 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_project_financial_progress_account_manager,project.financial.progress.account.manager,model_project_financial_progress,account.group_account_manager,1,1,1,1
+access_project_financial_progress_account_user,project.financial.progress.account.user,model_project_financial_progress,account.group_account_user,1,1,1,1
+access_project_financial_progress_user,project.financial.progress.user,model_project_financial_progress,base.group_user,1,0,0,0
+access_project_financial_axis_account_manager,project.financial.axis.account.manager,model_project_financial_axis,account.group_account_manager,1,1,1,1
+access_project_financial_axis_account_user,project.financial.axis.account.user,model_project_financial_axis,account.group_account_user,1,1,1,1
+access_project_financial_axis_user,project.financial.axis.user,model_project_financial_axis,base.group_user,1,1,1,0
+access_project_financial_axis_line_account_manager,project.financial.axis.line.account.manager,model_project_financial_axis_line,account.group_account_manager,1,1,1,1
+access_project_financial_axis_line_account_user,project.financial.axis.line.account.user,model_project_financial_axis_line,account.group_account_user,1,1,1,1
+access_project_financial_axis_line_user,project.financial.axis.line.user,model_project_financial_axis_line,base.group_user,1,1,1,0
+access_project_financial_axis_category_account_manager,project.financial.axis.category.account.manager,model_project_financial_axis_category,account.group_account_manager,1,1,1,1
+access_project_financial_axis_category_account_user,project.financial.axis.category.account.user,model_project_financial_axis_category,account.group_account_user,1,1,1,1
+access_project_financial_axis_category_user,project.financial.axis.category.user,model_project_financial_axis_category,base.group_user,1,0,0,0
+access_project_financial_axis_budget_user,project.financial.axis.budget.user,model_project_financial_axis_budget,base.group_user,1,1,1,1
+access_project_financial_axis_budget_line_user,project.financial.axis.budget.line.user,model_project_financial_axis_budget_line,base.group_user,1,1,1,1
+access_project_financial_data_importer_user,project.financial.data.importer.user,model_project_financial_data_importer,base.group_user,1,1,1,1
+access_project_financial_create_wizard,project.financial.create.wizard,model_project_financial_create_wizard,base.group_user,1,1,1,1
