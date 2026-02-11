@@ -1,5 +1,10 @@
-# -*- coding: utf-8 -*-
-# Part of Odoo. See LICENSE file for full copyright and licensing details.
-
-from . import account_budget
+from . import project_financial
 from . import account_analytic_account
+from . import stock_move
+from . import stock_picking
+from . import account_move
+from . import project_project
+from . import standard_pgp
+from . import mrp_production
+from . import product_category_mrp_ratio
+from . import importering

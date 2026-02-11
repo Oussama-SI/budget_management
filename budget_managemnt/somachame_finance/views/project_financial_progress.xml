@@ -2,6 +2,35 @@
 <odoo>
         <!-- Base search view, contains the fields and filters common to project, project sharing and fsm -->
     <!-- Search View -->
+    <record id="action_open_axes_list" model="ir.actions.act_window">
+        <field name="name">Plan de Gestion de Projet</field>
+        <field name="res_model">project.financial.axis</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="somachame_finance.view_project_financial_progress_axes_list"/>
+        <field name="binding_view_types">tree</field>
+        <field name="target">new</field>
+        <field name="domain">[('project_financial_id', '=', active_id)]</field>
+        <field name="context">{
+            'default_project_financial_id': active_id,
+        }</field>
+    </record>
+
+    <record id="action_add_axis" model="ir.actions.act_window">
+        <field name="name">Ajouter un axe</field>
+        <field name="res_model">project.financial.axis</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">
+            {
+                'default_project_financial_id': active_id,
+                'form_view_initial_mode': 'edit',
+                'form_create_edit': True
+            }
+        </field>
+        <field name="binding_model_id" ref="model_project_financial_progress"/>
+        <field name="binding_view_types">form</field>
+    </record>
+
     <record id="view_project_financial_search" model="ir.ui.view">
         <field name="name">project.financial.progress.search</field>
         <field name="model">project.financial.progress</field>
@@ -9,18 +38,19 @@
             <search string="Recherche Analyse Financière">
                 <field name="name" string="Désignation" filter_domain="['|', ('name', 'ilike', self), ('id', 'ilike', self)]"/>
                 <field name="project_id"/>
+                <field name="code"/>
                 <field name="user_id"/>
-                <field name="state"/>
                 
-                <filter string="En Cours" name="in_progress" domain="[('state', 'in', ['draft', 'confirm', 'validate'])]"/>
+                <filter string="En Cours" name="in_progress" domain="[('state', 'in', ['in_progress'])]"/>
                 <filter string="Terminés" name="done" domain="[('state', '=', 'done')]"/>
                 <filter string="Annulés" name="cancel" domain="[('state', '=', 'cancel')]"/>
-                
-                <!--<filter string="Dépassement Budget" name="over_budget" domain="[('variance', '&lt;', 0)]"/>
-                <filter string="Performance Correcte" name="good_performance" domain="[('performance_index', '&gt;=', 1)]"/>
+                <separator/>
+                <filter string="Désactivés" name="active" domain="[('active', '=', False)]"/>
+                <separator/>
+                 <!-- <filter string="Dépassement Budget" name="over_budget" domain="[('cost_variance', '&lt;', 0)]"/> -->
+               <!-- <filter string="Performance Correcte" name="good_performance" domain="[('performance_index', '&gt;=', 1)]"/>
                 -->
                 <group expand="0" string="Grouper par">
-                    <filter string="Projet" name="project" context="{'group_by': 'project_id'}"/>
                     <filter string="Responsable" name="user" context="{'group_by': 'user_id'}"/>
                     <filter string="Statut" name="state" context="{'group_by': 'state'}"/>
                     <!--<filter string="Type Construction" name="construction" context="{'group_by': 'construction_type'}"/>-->    </group>
@@ -33,15 +63,22 @@
         <field name="name">project.financial.progress.list</field>
         <field name="model">project.financial.progress</field>
         <field name="arch" type="xml">
-            <list string="Analyses Financières" default_order="create_date desc">
+            <list string="Analyses Financières" default_order="create_date desc" create="0" duplicate="0">
+                <header>
+                    <button name="%(somachame_finance.action_project_financial_create_wizard)d" 
+                            type="action"
+                            display="always"
+                            string="Nouveau" 
+                            class="oe_highlight"/>
+                </header>
                 <field name="name"/>
-                <field name="project_id" widget="many2one"/>
+                <field name="project_id" widget="many2one" optional="hide" options="{'no_open': True}"/>
                 <field name="user_id" widget="many2one_avatar"/>
                 <field name="state" widget="badge" decoration-success="state=='done'" decoration-warning="state in ['confirm','validate']" decoration-danger="state=='cancel'"/>
                 <field name="total_budget" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                <field name="project_earned_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                <field name="project_cost" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                <field name="cost_performance_index" widget="progressbar" options="{'editable': false, 'max_value': 2}"/>
+                <field name="project_earned_amount" widget="monetary" optional="hide" options="{'currency_field': 'currency_id'}"/>
+                <field name="project_cost" string="Coùt du Projet" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="cost_performance_index" widget="progressbar" optional="hide" options="{'editable': false, 'max_value': 2}"/>
                 <!-- <field name="completion_rate" widget="percentage"/> -->
             </list>
         </field>
@@ -52,23 +89,109 @@
         <field name="name">project.financial.progress.form</field>
         <field name="model">project.financial.progress</field>
         <field name="arch" type="xml">
-            <form string="Analyse Financière du Projet" class="o_form_project_financial">
+            <form string="Analyse Financière du Projet" class="o_form_project_financial" create="0" duplicate="0">
                 <header>
+                    <button name="%(action_open_axes_list)d"
+                                    string="Étude budgétaire"
+                                    type="action"
+                                    class="oe_highlight"/>
+                    <button name="%(action_add_axis)d"
+                                    string="Ajouter un axe"
+                                    type="action"
+                                    class="oe_highlight btn-secondary"/>
+
+                    <!-- <button name="action_import_all_financial_data" 
+                            type="object" 
+                            class="oe_highlight btn-primary"
+                            string="Importer Données Financières"
+                            confirm="Cette action va importer toutes les données d'avancement et de coûts réels. Continuer ?"/>
+
+                    <button name="action_view_imported_lines" 
+                            type="object" 
+                            class="btn-secondary"
+                            string="Voir Données Importées"/> -->
                     <field name="state" widget="statusbar" 
-                           statusbar_visible="draft,confirm,validate,done,cancel" 
-                           options="{'clickable': '1'}"/>
+                           statusbar_visible="draft,budgeted,in_progress,confirm,cancel" 
+                           options="{'clickable': '0'}"/>
                 </header>
                 
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button name="action_open_axes_progress" type="object" class="oe_stat_button" icon="fa-bar-chart">
-                            <field name="axis_ids" widget="statinfo" string="Avancement Acquise"/>
-                        </button>
-                        <button name="action_open_axes_cost" type="object" class="oe_stat_button btn_primary" icon="fa-table">
-                              <span>Avancement Réalisé</span>
-                        </button>
-
+                            <!-- Budget Détails -->
+                            <button name="action_open_budget_grid" 
+                                    type="object" 
+                                    class="oe_stat_button"
+                                    icon="fa-pie-chart"
+                                    invisible="'axis_ids' == False and is_axis_budget == False">
+                                <div class="o_stat_info">
+                                    <span class="o_stat_text">Détails Budget</span>
+                                    <span class="o_stat_value">
+                                        <field name="total_budget" widget="monetary" readonly="1"
+                                            options="{'currency_field': 'currency_id'}"/>
+                                    </span>
+                                </div>
+                            </button>
+                            
+                            <!-- Avancement Acquise -->
+                            <button name="action_open_axes_progress" 
+                                    type="object" 
+                                    class="oe_stat_button"
+                                    icon="fa-line-chart"
+                                    invisible="'axis_ids' == False">
+                                <div class="o_stat_info">
+                                    <span class="o_stat_text">Valeur Acquise</span>
+                                    <span class="o_stat_value">
+                                        <field name="project_earned_amount" widget="monetary" readonly="1"
+                                            options="{'currency_field': 'currency_id'}"/>
+                                    </span>
+                                </div>
+                            </button>
+                            <button name="action_open_axes_cost" 
+                                    type="object" 
+                                    class="oe_stat_button"
+                                    icon="fa-area-chart"
+                                    invisible="'axis_ids' == False">
+                                <div class="o_stat_info">
+                                    <span class="o_stat_text">Coût Réel</span>
+                                    <span class="o_stat_value">
+                                        <field name="project_cost" widget="monetary" readonly="1"
+                                            options="{'currency_field': 'currency_id'}"/>
+                                    </span>
+                                </div>
+                            </button>
+                            <button name="action_sync_all_project_data" 
+                                    type="object" 
+                                    class="oe_stat_button btn-warning"
+                                    icon="fa-refresh"
+                                    confirm="Êtes-vous sûr de vouloir réinitialiser toutes les lignes d'axes correspondantes ? Cela supprimera les lignes existantes.">
+                                <div class="o_stat_info">
+                                    <span class="o_stat_text">Réinitialiser</span>
+                                    <span class="o_stat_value">Axes</span>
+                                </div>
+                            </button>
+                           <button name="action_open_project_axes"
+                                    type="object" 
+                                    class="oe_stat_button"
+                                    icon="fa-cubes">
+                                <div class="o_stat_info">
+                                 <span class="o_stat_text">Mes Axes</span>
+                                    <span class="o_stat_value">
+                                        <field name="axis_count" nolabel="1" readonly="1" widget="statinfo"/>
+                                    </span>
+                                </div>
+                            </button>
                     </div>
+                            
+                            <!-- Rapport -->
+                            <!-- <button name="action_print_report" 
+                                    type="object" 
+                                    class="oe_stat_button"
+                                    icon="fa-file-pdf-o">
+                                <div class="o_stat_info">
+                                    <span class="o_stat_text">Rapport</span>
+                                    <span class="o_stat_value">PDF</span>
+                                </div>
+                            </button> -->
                     
                     <div class="oe_title">
                         <h1>
@@ -78,174 +201,339 @@
                     
                     <group>
                         <group>
-                            <field name="project_id" 
-                                   domain="[('account_id', '!=', False)]"
-                                   options="{'no_open': True}"/>
+                            <field name="project_id" domain="[('account_id', '!=', False)]" options="{'no_open': True}" readonly="1"/>
                             <field name="user_id" options="{'no_open': True}"/>
-                            <field name="account_id" readonly="1"/>
+                            <field name="account_id" invisible='1'/>
                         </group>
                         <group>
                             <field name="date_from" string="Date" widget="daterange" options="{&quot;end_date_field&quot;: &quot;date_to&quot;, &quot;always_range&quot;: &quot;1&quot;}" required="date_from or date_to"/>
                             <field name="date_to" invisible="1" required="date_from"/>
-                            <field name="project_planned_amount" readonly="0"/>
                         </group>
                     </group>
                     
-                    <!-- Tableau de bord financier -->
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <h2>Tableau de Bord Financier</h2>
-                            <div class="row">
-                                <div class="col-md-3 col-sm-6 text-center mb-3">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Budget Total</h5>
-                                            <h3 class="card-text">
-                                                <field name="total_budget" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/>
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-6 text-center mb-3">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Valeur Acquise</h5>
-                                            <h3 class="card-text">
-                                                <field name="project_earned_amount" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/>
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-6 text-center mb-3">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Valeur Planifier</h5>
-                                            <h3 class="card-text">
-                                                <field name="project_planned_amount" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/>
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-6 text-center mb-3">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Coût Réel</h5>
-                                            <h3 class="card-text">
-                                                <field name="project_cost" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/>
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- <div class="col-md-3 col-sm-6 text-center mb-3">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Taux d'avancement</h5>
-                                            <h3 class="card-text">
-                                                <field name="completion_rate" widget="percentage" nolabel="1"/>
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div> -->
-                            </div>
-                            
-                            <div class="row mt-2">
-                                <div class="col-md-2 col-sm-4 text-center">
-                                    <small>IPC</small>
-                                    <br/>
-                                    <field name="cost_performance_index" widget="progressbar" options="{'editable': false, 'max_value': 2}" nolabel="1"/>
-                                </div>
-                                    <!-- <field name="performance_state" widget="statusbar" statusbar_visible="good,warning"/> -->
-                                    <!-- <small class="text-success" attrs="{'invisible': ['|', ('performance_index', '&lt;', 1), ('performance_index', '=', False)]}">Bon</small>
-                                    <small class="text-danger" attrs="{'invisible': [('performance_index', '&gt;=', 1)]}">À surveiller</small> -->
-                                <div class="col-md-2 col-sm-4 text-center">
-                                    <small>IPD</small>
-                                    <br/>
-                                    <field name="delay_performance_index" widget="progressbar" options="{'editable': false, 'max_value': 2}" nolabel="1"/>
-                                </div>
-                                <div class="col-md-2 col-sm-4 text-center">
-                                    <small>IPR</small>
-                                    <br/>
-                                    <field name="rec_performance_index" widget="progressbar" options="{'editable': false, 'max_value': 2}" nolabel="1"/>
-                                </div>
-                                <div class="col-md-2 col-sm-4 text-center">
-                                    <small>Écart Coût</small>
-                                    <br/>
-                                    <field name="variance" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"
-                                           decoration-success="variance &gt;= 0" decoration-danger="variance &lt; 0"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Axes analytiques -->
                     <notebook>
-                        <page string="Axes Analytiques" name="axes_page">
-                            <field name="axis_ids" mode="list,form" nolabel="1">
-                                <list editable="bottom" string="Axes" default_order="sequence">
-                                    <field name="sequence" widget="handle"/>
-                                    <field name="name"/>
-                                    <field name="type"/>
-                                    <field name="planned_budget" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                    <field name="planned_quantity" />
-                                    <field name="planned_budget" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                    <!--<field name="earned_value" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                    <field name="actual_cost" widget="monetary" options="{'currency_field': 'currency_id'}"/>-->
-                                    <field name="progress" widget="progressbar" options="{'editable': false}"/>
-                                    <!--<field name="manufacturing_order_id" widget="many2one" options="{'no_open': True}"/>
-                                     <field name="stock_picking_id" widget="many2one" options="{'no_open': True}"/>
-                                    <field name="task_id" widget="many2one" options="{'no_open': True}"/>-->
-                                </list>
-                                
-                                <form>
-                                    <sheet>
-                                        <group>
-                                            <group>
-                                                <field name="name"/>
-                                                <field name="type"/>
-                                                <field name="sequence"/>
-                                            </group>
-                                            <group>
-                                                <field name="planned_budget" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                                <field name="progress" widget="percentage" readonly="1"/>
-                                            </group>
-                                        </group>
-                                        
-                                        <group string="Métriques de Valeur">
-                                            <group>
-                                                <field name="planned_budget" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                                <!--<field name="earned_value" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                                <field name="actual_cost" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                            --></group>
-                                        </group>
-                                        
-                                        <group string="Liens avec autres modules">
-                                            <group>
-                                                <!--<field name="manufacturing_order_id"/>
-                                                <field name="stock_picking_id"/>
-                                                <field name="task_id"/>-->
-                                            </group>
-                                        </group>
-                                    </sheet>
-                                </form>
-                            </field>
+                        <page string="Description">
+                                <field name="description" placeholder="Notes supplémentaires, observations, piéces jointes..." nolabel="1"/>
                         </page>
-                        
-                        <page string="Détails Techniques" groups="base.group_no_one">
-                            <group>
-                                <group>
-                                    <field name="create_uid" readonly="1"/>
-                                    <field name="create_date" readonly="1"/>
-                                    <field name="write_uid" readonly="1"/>
-                                    <field name="write_date" readonly="1"/>
-                                </group>
-                            </group>
+                        <page string="État Financier">
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="row">
+                                        <div class="col-md-3 col-sm-6 text-center mb-3">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Budget Total</h5>
+                                                    <h3 class="card-text">
+                                                        <field name="total_budget" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/>
+                                                    </h3>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 col-sm-6 text-center mb-3">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Valeur Acquise</h5>
+                                                    <h3 class="card-text">
+                                                        <field name="project_earned_amount" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/>
+                                                    </h3>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- <div class="col-md-3 col-sm-6 text-center mb-3">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Avancement</h5>
+                                                    <h3 class="card-text">
+                                                        <field name="total_budget" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/>
+                                                    </h3>
+                                                </div>
+                                            </div>
+                                        </div> -->
+                                        <div class="col-md-3 col-sm-6 text-center mb-3">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Coût Réel</h5>
+                                                    <h3 class="card-text">
+                                                        <field name="project_cost" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/>
+                                                    </h3>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- <div class="col-md-3 col-sm-6 text-center mb-3">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">Taux d'avancement</h5>
+                                                    <h3 class="card-text">
+                                                        <field name="completion_rate" widget="percentage" nolabel="1"/>
+                                                    </h3>
+                                                </div>
+                                            </div>
+                                        </div> -->
+                                    </div>
+                                    
+                                    <div class="row mt-2">
+                                        <div class="col-md-2 col-sm-4 text-center">
+                                            <small>IPC</small>
+                                            <br/>
+                                            <field name="cost_performance_index" widget="progressbar" options="{'editable': false, 'max_value': 2}" nolabel="1"/>
+                                        </div>
+                                            <!-- <field name="performance_state" widget="statusbar" statusbar_visible="good,warning"/> -->
+                                            <!-- <small class="text-success" attrs="{'invisible': ['|', ('performance_index', '&lt;', 1), ('performance_index', '=', False)]}">Bon</small>
+                                            <small class="text-danger" attrs="{'invisible': [('performance_index', '&gt;=', 1)]}">À surveiller</small> -->
+                                        <div class="col-md-2 col-sm-4 text-center">
+                                            <small>IPD</small>
+                                            <br/>
+                                            <field name="delay_performance_index" widget="progressbar" options="{'editable': false, 'max_value': 2}" nolabel="1"/>
+                                        </div>
+                                        <div class="col-md-2 col-sm-4 text-center">
+                                            <small>IPR</small>
+                                            <br/>
+                                            <field name="rec_performance_index" widget="progressbar" options="{'editable': false, 'max_value': 2}" nolabel="1"/>
+                                        </div>
+                                        <div class="col-md-2 col-sm-4 text-center">
+                                            <small>Écart Coût</small>
+                                            <br/>
+                                            <field name="cost_variance" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"
+                                                decoration-success="cost_variance &gt;= 0" decoration-danger="cost_variance &lt; 0"/>
+                                        </div>
+                                        <div class="col-md-2 col-sm-4 text-center">
+                                            <small>Écart Délai</small>
+                                            <br/>
+                                            <field name="delay_variance" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"
+                                                decoration-success="delay_variance &gt;= 0" decoration-danger="delay_variance &lt; 0"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </page>
                     </notebook>
                 </sheet>
+                <div class="oe_button_box" name="button_box">
+                <button 
+                    name="recompute_all_axis_lines" 
+                    string="Recompute Lines" 
+                    type="object" 
+                    class="oe_stat_button"
+                    icon="fa-refresh"
+                    confirm="Are you sure you want to recompute all axis lines?"
+                >
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Recompute</span>
+                    </div>
+                </button>
+                </div>
                 <chatter reload_on_follower="True"/>
             </form>
         </field>
     </record>
+
+    <record id="view_project_financial_progress_kanban" model="ir.ui.view">
+    <field name="name">project.financial.progress.kanban</field>
+    <field name="model">project.financial.progress</field>
+    <field name="arch" type="xml">
+        <kanban class="o_kanban_project_financial">
+            <field name="name"/>
+            <field name="state"/>
+            <field name="project_id"/>
+            <field name="user_id"/>
+            <field name="date_from"/>
+            <field name="date_to"/>
+            <field name="total_budget"/>
+            <field name="cost_performance_index"/>
+            <field name="delay_performance_index"/>
+            <field name="completion_rate"/>
+            <field name="performance_state"/>
+            <field name="project_cost"/>
+            <field name="project_earned_amount"/>
+            <field name="project_planned_amount"/>
+            
+            <!-- Templates -->
+            <templates>
+                <t t-name="kanban-box">
+                    <!-- Carte principale -->
+                    <div class="o_kanban_record oe_kanban_card" tabindex="0" role="article">
+                        <!-- En-tête avec statut et actions -->
+                        <div class="o_kanban_card_header">
+                            <!-- Badge d'état -->
+                            <div class="o_kanban_card_header_title">
+                                <div class="o_kanban_card_header_title_top">
+                                    <field name="state" widget="statusbar" 
+                                           statusbar_visible="draft,confirm,validate,done"
+                                           options="{'clickable': 'true'}"/>
+                                </div>
+                                <div class="o_kanban_card_header_title_bottom">
+                                    <strong>
+                                        <field name="name" widget="text_emphasys"/>
+                                    </strong>
+                                </div>
+                            </div>
+                            
+                            <!-- Menu d'actions rapides -->
+                            <div class="o_kanban_quick_add">
+                                <div class="dropdown">
+                                    <a class="dropdown-toggle o-kanban-button" href="#" role="button" data-toggle="dropdown">
+                                        <i class="fa fa-ellipsis-v"/>
+                                    </a>
+                                    <div class="dropdown-menu" role="menu">
+                                        <t t-if="widget.editable">
+                                            <a class="dropdown-item" href="#" type="edit">Modifier</a>
+                                            <a class="dropdown-item" href="#" type="delete">Supprimer</a>
+                                        </t>
+                                        <div class="dropdown-divider"/>
+                                        <a class="dropdown-item" href="#" type="open">Ouvrir</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Contenu principal -->
+                        <div class="o_kanban_card_content">
+                            <!-- Info projet -->
+                            <div class="o_kanban_card_info mb-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="fa fa-project-diagram mr-2 text-muted"/>
+                                    <small>
+                                        <field name="project_id" widget="many2one_avatar"/>
+                                    </small>
+                                </div>
+                                <div class="d-flex align-items-center mt-1">
+                                    <i class="fa fa-user mr-2 text-muted"/>
+                                    <small>
+                                        <field name="user_id" widget="many2one_avatar"/>
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <!-- Dates -->
+                            <div class="o_kanban_dates mb-3">
+                                <div class="d-flex justify-content-between small">
+                                    <div>
+                                        <i class="fa fa-calendar-start mr-1"/>
+                                        <field name="date_from" widget="date"/>
+                                    </div>
+                                    <div>
+                                        <i class="fa fa-calendar-end mr-1"/>
+                                        <field name="date_to" widget="date"/>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Indicateurs financiers -->
+                            <div class="o_kanban_indicators">
+                                <!-- Budget -->
+                                <div class="indicator-card mb-2">
+                                    <div class="indicator-header">
+                                        <small class="text-muted">Budget Total</small>
+                                        <i class="fa fa-money-bill-wave ml-1"/>
+                                    </div>
+                                    <div class="indicator-value">
+                                        <field name="total_budget" widget="monetary" 
+                                               options="{'currency_field': 'currency_id'}"/>
+                                    </div>
+                                </div>
+                                
+                                <!-- Coût réel -->
+                                <div class="indicator-card mb-2">
+                                    <div class="indicator-header">
+                                        <small class="text-muted">Coût Réel</small>
+                                        <i class="fa fa-chart-line ml-1"/>
+                                    </div>
+                                    <div class="indicator-value">
+                                        <field name="project_cost" widget="monetary" 
+                                               options="{'currency_field': 'currency_id'}"/>
+                                    </div>
+                                </div>
+                                
+                                <!-- Indices de performance -->
+                                <div class="row no-gutters mb-2">
+                                    <!-- IPC -->
+                                    <div class="col-4">
+                                        <div class="performance-index">
+                                            <div class="index-label">IPC</div>
+                                            <div class="index-value" 
+                                                 t-att-class="'index-' + (record.cost_performance_index.raw_value >= 1 ? 'good' : 'danger')">
+                                                <field name="cost_performance_index" widget="float_time"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- IPD -->
+                                    <div class="col-4">
+                                        <div class="performance-index">
+                                            <div class="index-label">IPD</div>
+                                            <div class="index-value" 
+                                                 t-att-class="'index-' + (record.delay_performance_index.raw_value >= 1 ? 'good' : 'danger')">
+                                                <field name="delay_performance_index" widget="float_time"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Taux achèvement -->
+                                    <div class="col-4">
+                                        <div class="performance-index">
+                                            <div class="index-label">Achèvement</div>
+                                            <div class="index-value">
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar" 
+                                                         role="progressbar" 
+                                                         t-att-style="'width: ' + (record.completion_rate.raw_value || 0) + '%;'"
+                                                         t-att-class="record.completion_rate.raw_value >= 75 ? 'bg-success' : 
+                                                                      record.completion_rate.raw_value >= 50 ? 'bg-warning' : 'bg-danger'">
+                                                    </div>
+                                                </div>
+                                                <small t-esc="(record.completion_rate.raw_value || 0) + '%'"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Écarts -->
+                                <div class="row no-gutters">
+                                    <div class="col-6">
+                                        <div class="variance-indicator">
+                                            <small class="text-muted">Écart Coût</small>
+                                            <div t-att-class="'variance-value ' + (record.cost_variance.raw_value >= 0 ? 'positive' : 'negative')">
+                                                <field name="cost_variance" widget="monetary" 
+                                                       options="{'currency_field': 'currency_id'}"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="variance-indicator">
+                                            <small class="text-muted">Écart Délai</small>
+                                            <div t-att-class="'variance-value ' + (record.delay_variance.raw_value >= 0 ? 'positive' : 'negative')">
+                                                <field name="delay_variance" widget="monetary" 
+                                                       options="{'currency_field': 'currency_id'}"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Footer avec état de performance -->
+                        <div class="o_kanban_card_footer">
+                            <div t-att-class="'performance-badge performance-' + record.performance_state.raw_value">
+                                <i t-if="record.performance_state.raw_value == 'good'" class="fa fa-check-circle mr-1"/>
+                                <i t-if="record.performance_state.raw_value == 'warning'" class="fa fa-exclamation-triangle mr-1"/>
+                                <span>
+                                    <t t-if="record.performance_state.raw_value == 'good'">Performance Bonne</t>
+                                    <t t-if="record.performance_state.raw_value == 'warning'">À Surveiller</t>
+                                </span>
+                            </div>
+                            <div class="axis-count">
+                                <i class="fa fa-chart-bar mr-1"/>
+                                <small>
+                                    <t t-esc="record.axis_ids.length"/> Axe(s)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </templates>
+        </kanban>
+    </field>
+</record>
 
     <!-- Graph View -->
     <record id="view_project_financial_graph" model="ir.ui.view">
@@ -279,28 +567,54 @@
 
     <!-- Action -->
     <record id="action_project_financial_progress" model="ir.actions.act_window">
-        <field name="name">Analyses Financières</field>
+        <field name="name">PGP</field>
         <field name="res_model">project.financial.progress</field>
-        <field name="view_mode">list,form,graph,pivot</field>
-        <field name="context">{'search_default_in_progress': 1}</field>
+        <field name="view_mode">list,kanban,form,graph,pivot</field>
+        <field name="context">{}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Créer votre première analyse financière
+                Aucun projet financier n'est défini.
             </p>
             <p>
-                Suivez la performance financière de vos projets avec la méthode de la valeur acquise.
+                Les projets financiers permettent le suivi détaillé des budgets,
+                de l'avancement et des coûts de vos projets.
             </p>
+            <div class="text-center">
+                <button type="action" 
+                        name="action_project_financial_create_wizard" 
+                        string="Créer un nouveau projet financier"
+                        class="btn btn-primary mt-2"/>
+            </div>
         </field>
     </record>
-
     <!-- Menu -->
 
     <menuitem id="root_project_financial_menu"
               sequence="10"
               name="Indicateurs KPIs"
-              web_icon="account_budget,static/description/KPIs.png"/>
+              web_icon="somachame_finance,static/description/icon.png"/>
+    <record id="action_project_financial_axis_kpi_dashboard" model="ir.actions.client">
+        <field name="name">Axes Analytiques - KPI</field>
+        <field name="tag">somachame_finance.fin_axis_kpi_dashboard</field>
+    </record>
+<!-- <record id="action_project_financial_axis_line_graph" model="ir.actions.act_window">
+    <field name="name">Axes (Graph)</field>
+    <field name="res_model">project.financial.axis.line</field>
+    <field name="view_mode">graph</field>
+    <field name="view_id" ref="somachame_finance.view_project_financial_axis_line_graph_time"/>
+</record> -->
+
+<!-- <menuitem id="menu_project_financial_axis_line_graph"
+          name="Axes (Graph)"
+          parent="somachame_finance.root_project_financial_menu"
+          action="somachame_finance.action_project_financial_axis_line_graph"
+          sequence="41"/> -->
+
+
+
+    <!-- ✅ Ton menuitem (même id), mais action = dashboard -->
 
     <!-- <menuitem id="menu_project_financial_main" name="Finances Projets" parent="root_project_financial_menu" sequence="100"/> -->
-    <menuitem id="menu_project_financial_progress" name="Finances Projets" parent="root_project_financial_menu" action="action_project_financial_progress" sequence="10"/>
-    <menuitem id="menu_project_financial_axis" name="Axes Financiers" parent="root_project_financial_menu" action="somachame_finance.action_project_financial_axis" sequence="20"/>
+    <menuitem id="menu_project_financial_progress" name="Plans de Gestions" parent="root_project_financial_menu" action="action_project_financial_progress" sequence="10"/>
+    <menuitem id="menu_project_financial_axis" name="Axes Analytiques" parent="root_project_financial_menu" action="somachame_finance.action_project_financial_axis" sequence="20"/>
 </odoo>

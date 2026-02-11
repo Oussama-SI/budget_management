@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+from odoo import models, api
 
-from odoo import fields, models, api
-
+_logger = logging.getLogger(__name__)
 
 class AccountAnalyticLine(models.Model):
     _inherit = "account.analytic.line"
 
 
-    def _get_matching_axis_for_line(self):
+    def get_matching_axis_for_line(self):
         """
         Trouve l'axe financier correspondant à cette ligne analytique
-        Uniquement pour les lignes de COÛT (amount <= 0)
+        Uniquement pour les lignes de COÛT du feuille de temps
         """
         self.ensure_one()
         
@@ -19,83 +20,59 @@ class AccountAnalyticLine(models.Model):
             return self.env['project.financial.axis']
         
         domain = [
-            ('project_financial_id.analytic_account_id', '=', self.account_id.id)
+            ('project_financial_id.account_id', '=', self.account_id.id),
+            ('cost_type', '=', 'analytic')
         ]
-        
-        if self.product_id and self.product_id.product_tmpl_id.categ_id:
-            domain.append(('product_category_ids', 'parent_of', self.product_id.product_tmpl_id.categ_id.id))
-        else:
-            domain.append(('product_category_ids', '=', False))
-        
-        if self.employee_id and self.employee_id.department_id:
-            domain.append(('employee_department_ids', '=', self.employee_id.department_id.id))
-        else:
-            domain.append(('employee_department_ids', '=', False))
-        
-        # Type d'axe
-        # if self.manufacturing_order_id:
-        #     domain.append(('type', '=', 'mrp'))
-        # elif self.stock_move_id:
-        #     domain.append(('type', '=', 'inventaire'))
-        # elif self.task_id:
-        #     domain.append(('type', '=', 'intern'))
-        # else:
-        #     domain.append(('type', '=', 'manual'))
-        
-        return self.env['project.financial.axis'].search(domain)
+        axes = self.env['project.financial.axis'].search(domain)
+        matching_axes = axes.filtered(lambda a: self.employee_id in a.employee_ids)
+
+        return matching_axes
     
+    def _calculate_amount_for_axis_date(self, axis, date):
+        total = 0.0
+        lines = self.search([
+                ('account_id', '=', axis.project_financial_id.account_id.id),
+                ('employee_id', 'in', axis.employee_ids.ids),
+                ('date', '=', date),
+                ('product_id', '=', False),
+                ('amount', '<', 0),
+        ])
+            
+        for line in lines:
+            total += abs(line.amount)
+        _logger.info(f"total est : {total}")
+        return total
     
-    def _update_axis_line_for_date(self, axis, date):
+    def update_axis_line_for_date(self, axis, date):
         """
         Met à jour ou crée la ligne d'axe pour une date donnée
-        Calcule le earned_value total pour cette date et cet axe
+        Calcule le coùt total pour cette date et cet axe
         """
         AxisLine = self.env['project.financial.axis.line']
-        
-        # Chercher la ligne existante
         axis_line = AxisLine.search([
             ('axis_id', '=', axis.id),
             ('date', '=', date)
         ], limit=1)
+
+        abs_amount = self._calculate_amount_for_axis_date(axis, date)
+        _logger.info(f"amount: {abs_amount}")
         
-        total_earned_value = 0.0
-        total_actual_cost = 0.0
-        
-        # Chercher TOUTES les lignes analytiques qui correspondent
-        domain = [
-            ('account_id', '=', self.account_id.id),  # Même compte analytique
-            ('date', '=', date),                      # Même date
-            ('amount', '<=', 0),                      # Uniquement les coûts
-        ]
-        
-        # IMPORTANT: On recherche toutes les lignes, pas seulement celle en cours
-        all_analytic_lines = self.search(domain)
-        
-        for analytic_line in all_analytic_lines:
-            matching_axes = analytic_line._get_matching_axis_for_line()
-            if axis in matching_axes:
-                total_earned_value += analytic_line.unit_amount
-                total_actual_cost += abs(analytic_line.amount)
-        
-        # Créer ou mettre à jour la ligne d'axe
-        if total_earned_value > 0 or axis_line:
-            if axis_line:
-                axis_line.write({
-                    'earned_value': total_earned_value,
-                    'actual_cost': total_actual_cost
-                })
-            else:
-                axis_line = AxisLine.create({
+        if axis_line:
+                # new = axis_line.actual_cost + abs_amount
+                axis_line.write({'actual_cost': abs_amount})
+                _logger.info(f"axis {axis_line} updated")
+        else:
+            axis_line = AxisLine.create({
                     'axis_id': axis.id,
                     'date': date,
-                    'earned_value': total_earned_value,
-                    'actual_cost': total_actual_cost,
+                    'actual_cost': abs_amount,
                     # 'progress': 0.0,
-                })
+            })
+            _logger.info(f"axis {axis_line} created")
         
         return axis_line
 
-    def _cleanup_empty_axis_lines(self, axis_id, date):
+    def _cleanup_empty_axis_lines(self, axis_id, date, amount):
         """
         Supprime les lignes d'axe qui n'ont plus de lignes analytiques
         """
@@ -104,110 +81,79 @@ class AccountAnalyticLine(models.Model):
         # Vérifier si la ligne d'axe existe encore
         axis_line = AxisLine.search([
             ('axis_id', '=', axis_id),
-            ('date', '=', date)
+            ('date', '=', date),
+            ('actual_cost', '>=', amount),
         ], limit=1)
         
         if axis_line:
-            # Vérifier s'il y a encore des lignes analytiques pour cette date
-            analytic_lines = self.search([
-                ('account_id', '=', self.account_id.id),
-                ('date', '=', date),
-                ('amount', '<=', 0),
-            ])
-            
-            # Filtrer celles qui correspondent à l'axe
-            has_matching_lines = False
-            for line in analytic_lines:
-                matching_axes = line._get_matching_axis_for_line()
-                if axis_line.axis_id in matching_axes:
-                    has_matching_lines = True
-                    break
-            
-            if not has_matching_lines:
-                # Supprimer la ligne d'axe vide
-                axis_line.unlink()
+            remains = axis_line.actual_cost - abs(amount)
+            _logger.info(f"to remise :  {remains}")
+            axis_line.write({'actual_cost': remains})     
 
     @api.model_create_multi
     def create(self, vals_list):
-        """
-        Surcharge de la création
-        """
-        # Créer les lignes analytiques d'abord
+
         analytic_lines = super(AccountAnalyticLine, self).create(vals_list)
         
-        # Traiter chaque ligne créée
         for line in analytic_lines:
+            if line.product_id or line.amount >= 0:
+                continue
             try:
-                # Uniquement pour les lignes de coût
-                if line.amount and line.amount > 0:
-                    continue
-                
-                # Trouver les axes correspondants
-                matching_axes = line._get_matching_axis_for_line()
-                
-                for axis in matching_axes:
-                    # Mettre à jour la ligne d'axe pour cette date
-                    line._update_axis_line_for_date(axis, line.date)
+                matching_axis = line.get_matching_axis_for_line()
+                _logger.info(f"matching_axes : {matching_axis}")
+                if matching_axis:
+                    axis_line =  line.update_axis_line_for_date(matching_axis, line.date)
+                    _logger.info(f"Ligne axe mise à jour/créée: {axis_line.id if axis_line else 'Erreur'}")
+                else:
+                    _logger.warning(f"Aucun axe trouvé pour la ligne {line.id}")
                     
             except Exception as e:
-                continue
+                self.returning_exception("améleoration")
         
         return analytic_lines
 
     def write(self, vals):
         """
-        Surcharge de l'écriture
+        Surcharge de WRITE
         """
-        # Stocker les anciennes valeurs avant modification
         old_values = {}
         for line in self:
+            if line.product_id:
+                continue
+            old_matching_axe = line.get_matching_axis_for_line()
+            if not old_matching_axe:
+                continue
             old_values[line.id] = {
-                'date': line.date,
-                'account_id': line.account_id.id,
-                'product_id': line.product_id.id if line.product_id else False,
-                'employee_id': line.employee_id.id if line.employee_id else False,
-                'unit_amount': line.unit_amount,
-                'amount': line.amount,
+                    'axis_id': old_matching_axe.id,
+                    'date': line.date,
+                    'account_id': line.account_id.id,
+                    'employee_id': line.employee_id.id if line.employee_id else False,
+                    # 'unit_amount': line.unit_amount,
+                    'amount': line.amount,
             }
         
-        # Appliquer les modifications
         result = super(AccountAnalyticLine, self).write(vals)
         
-        # Identifier les champs qui affectent le matching
-        affecting_fields = ['date', 'account_id', 'product_id', 'employee_id', 
+        affecting_fields = ['date', 'account_id', 'employee_id', 
                           'unit_amount', 'amount']
         
-        if any(field in vals for field in affecting_fields):
+        if any(field in vals for field in affecting_fields) and 'product_id' not in vals:
             for line in self:
                 try:
-                    old_data = old_values.get(line.id, {})
+                    old_data = old_values.get(line.id, {}) or None
                     
                     # Nettoyer l'ancienne date si la date a changé
-                    if 'date' in vals and old_data.get('date') != line.date:
-                        # Trouver les anciens axes correspondants
-                        old_matching_axes = line._get_matching_axis_for_line()
-                        for axis in old_matching_axes:
-                            line._cleanup_empty_axis_lines(axis.id, old_data['date'])
-                    
-                    # Mettre à jour pour la nouvelle configuration
-                    # Uniquement pour les lignes de coût
-                    if line.amount and line.amount > 0:
-                        # Si c'est devenu un revenu, nettoyer l'ancienne ligne
-                        if old_data.get('amount', 0) <= 0:
-                            matching_axes = line._get_matching_axis_for_line()
-                            for axis in matching_axes:
-                                line._cleanup_empty_axis_lines(axis.id, line.date)
-                        continue
-                    
-                    # Trouver les nouveaux axes correspondants
-                    matching_axes = line._get_matching_axis_for_line()
-                    
-                    for axis in matching_axes:
-                        # Mettre à jour la ligne d'axe
-                        line._update_axis_line_for_date(axis, line.date)
+                    if old_data and (('date' in vals and old_data.get('date') != line.date) \
+                        or ('employee_id' in vals and line.employee_id.id != old_data.get('employee_id')) \
+                            or ('account_id' in vals and line.account_id.id != old_data.get('account_id'))):
+                        line._cleanup_empty_axis_lines(old_data['axis_id'], old_data['date'], old_data['amount'])
+                                      
+                    matching_axe = line.get_matching_axis_for_line()
+                    if matching_axe:
+                        line.update_axis_line_for_date(matching_axe, line.date)
                         
                 except Exception as e:
-                    continue
+                    self.returning_exception("modéfication")
         
         return result
 
@@ -218,47 +164,31 @@ class AccountAnalyticLine(models.Model):
         # Stocker les informations avant suppression
         to_cleanup = []
         for line in self:
-            # Uniquement pour les lignes de coût
-            if line.amount and line.amount > 0:
+            if line.product_id or line.amount >= 0:
                 continue
             
-            matching_axes = line._get_matching_axis_for_line()
-            for axis in matching_axes:
-                to_cleanup.append({
-                    'axis_id': axis.id,
+            matching_axis = line.get_matching_axis_for_line()
+            if not matching_axis:
+                _logger.info(f"there is no matching for {line}")
+                continue
+            
+            to_cleanup.append({
+                    'axis_id': matching_axis.id,
                     'date': line.date,
-                    'account_id': line.account_id.id if line.account_id else False,
-                })
+                    'account_id': line.account_id.id,
+                    'employee_id': line.employee_id.id,
+                    'amount': line.amount
+            })
         
-        # Supprimer les lignes
         result = super(AccountAnalyticLine, self).unlink()
-        
-        # Nettoyer les lignes d'axe vides
-        for cleanup_data in to_cleanup:
-            if not cleanup_data['account_id']:
-                continue
-                
-            try:
-                # Vérifier s'il reste des lignes analytiques pour cette combinaison
-                remaining_lines = self.search([
-                    ('account_id', '=', cleanup_data['account_id']),
-                    ('date', '=', cleanup_data['date']),
-                    ('amount', '<=', 0),
-                ], limit=1)
-                
-                if not remaining_lines:
-                    # Chercher la ligne d'axe
-                    axis_line = self.env['project.financial.axis.line'].search([
-                        ('axis_id', '=', cleanup_data['axis_id']),
-                        ('date', '=', cleanup_data['date'])
-                    ], limit=1)
-                    
-                    if axis_line:
-                        axis_line.unlink()
-                        
-            except Exception as e:
-                continue
-        
+        if to_cleanup:
+            for data in to_cleanup:
+                try:
+                    self._cleanup_empty_axis_lines(data['axis_id'], data['date'], data['amount'])
+                    _logger.info(f"cleaning for {data['axis_id']}")                        
+                except Exception as e:
+                    self.returning_exception("démuniation")
+            
         return result
 
     def _recompute_all_axis_lines(self):
@@ -275,10 +205,24 @@ class AccountAnalyticLine(models.Model):
         # Recréer les lignes d'axe
         for line in cost_lines:
             try:
-                matching_axes = line._get_matching_axis_for_line()
-                for axis in matching_axes:
-                    line._update_axis_line_for_date(axis, line.date)
+                matching_axis = line.get_matching_axis_for_line()
+                line.update_axis_line_for_date(matching_axis, line.date)
             except Exception as e:
-                continue
+                self.returning_exception("recalcule")
         
         return True
+    
+    def returning_exception(self, type):
+        for line in self:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': (f'FT : Erreur de synchronisation : {line.project_id.name}'),
+                    'message': (
+                    f'Une erreur est survenue lors de la {type} des ligne de ce Axe'
+                    ),
+                    'type': 'danger',
+                    'sticky': False,
+                }
+            }
